@@ -1,0 +1,18 @@
+version: "3.9"
+services:
+  my-web:
+    image: gyomu-nuxt
+    container_name: gyomuweb
+    build:
+      context: .
+      dockerfile: ./docker/web/Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/usr/src/web
+    command: sh -c 'cd gyomuapp && npm run dev'
+    # 永続化設定(docker-compose-up後も起動し続ける)
+    tty: true
+    # ホストマシンとコンテナ間でファイルの変更がリアルタイムで反映される
+    environment:
+      - CHOKIDAR_USEPOLLING=true
