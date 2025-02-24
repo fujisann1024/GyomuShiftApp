@@ -1,11 +1,11 @@
 <template>
   <div class="p-6 w-full">
     <h1 class="text-3xl font-bold mb-6 text-center">シフト表</h1>
-    <div class="overflow-x-auto overflow-y-auto max-h-[70vh]"> <!-- 横スクロール許可 -->
-      <table class="w-full border border-gray-400 text-xl">  <!-- 親サイズまで幅を広げる。ボーダーはグレーで文字は少し大きめ -->
-        <thead class="sticky top-0 bg-gray-300 z-10">
-          <tr class="bg-gray-300">
-            <th class="border px-16 py-6 sticky left-0 bg-gray-300">従業員</th>
+    <div class="overflow-x-auto overflow-y-auto max-h-[70vh]">
+      <table class="w-full border border-gray-400 text-xl">
+        <thead class="sticky top-0 z-10 bg-gray-300">
+          <tr>
+            <th class="sticky left-0 border px-16 py-6 bg-gray-300">従業員</th>
             <th v-for="date in dates" :key="date" class="border px-16 py-6"
               :class="{'bg-blue-100': isSaturday(date), 'bg-red-100': isSunday(date)}">
               {{ formatDate(date) }}
@@ -20,14 +20,12 @@
               <div class="flex flex-col space-y-2">
                 <input 
                   type="text" placeholder="HH:MM"
-                  v-model="shifts[employee.id][date].start" 
-                  class="w-full text-center border rounded-lg p-2 text-xl"
-                  >
+                  v-model="getShift(employee, date).starttime"
+                  class="w-full text-center border rounded-lg p-2 text-xl">
                 <input 
-                  type="text" placeholder="HH:MM" 
-                  v-model="shifts[employee.id][date].end" 
-                  class="w-full text-center border rounded-lg p-2 text-xl"
-                  >
+                  type="text" placeholder="HH:MM"
+                  v-model="getShift(employee, date).endtime"
+                  class="w-full text-center border rounded-lg p-2 text-xl">
               </div>
             </td>
           </tr>
@@ -40,34 +38,45 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 
+interface EmployeeShift {
+  workday: string;
+  starttime?: string;
+  endtime?: string;
+  breakflg: boolean;
+}
+
 interface Employee {
   id: number;
   name: string;
-}
-
-interface Shift {
-  start: string;
-  end: string;
+  shfits: EmployeeShift[];
 }
 
 const dates = ref<string[]>([]);
 const employees = ref<Employee[]>([
-  { id: 1, name: '田中' },
-  { id: 2, name: '佐藤' },
-  { id: 3, name: '鈴木' },
-  { id: 4, name: '山田' },
-  { id: 5, name: '斎藤' },
-  { id: 6, name: '松本' },
-  { id: 7, name: '中村' },
-  { id: 8, name: '小林' },
-  { id: 9, name: '加藤' },
-  { id: 10, name: '吉田' },
+  { id: 1, name: 'Tanaka', shfits: [
+    { workday: '2025-02-01', starttime: '09:00', endtime: '18:00', breakflg: false },
+    { workday: '2025-02-02', starttime: '09:00', endtime: '18:00', breakflg: false },
+  ]},
+  { id: 2, name: 'Sato', shfits: [
+    { workday: '2025-02-01', starttime: '18:00', endtime: '22:00', breakflg: false },
+    { workday: '2025-02-02', starttime: '18:00', endtime: '22:00', breakflg: false },
+  ]},
+  {
+    id: 3,
+    name: 'Suzuki',
+    shfits: [
+      { workday: '2025-02-01', starttime: '09:00', endtime: '18:00', breakflg: false },
+      { workday: '2025-02-02', starttime: '09:00', endtime: '18:00', breakflg: false },
+    ],
+  }
 ]);
-const shifts = ref<Record<number, Record<string, Shift>>>({});
 
-const getDates = () => {
+/**
+ * 月の日付を取得する
+ */
+const getMonthListDates = () => {
   const result: string[] = [];
-  const today = new Date();
+  const today = new Date(2025,2,24); // TODO: 本来は現在の日付を取得
   const year = today.getFullYear();
   const month = today.getMonth();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -77,8 +86,11 @@ const getDates = () => {
     result.push(date.toISOString().split('T')[0]);
   }
   return result;
-}
+};
 
+/**
+ * 日付文字列をフォーマットする
+ */
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
   const day = date.getDate();
@@ -86,27 +98,34 @@ const formatDate = (dateString: string) => {
   return `${day} (${weekday})`;
 };
 
-const initializeShifts = () => {
-  employees.value.forEach(employee => {
-    shifts.value[employee.id] = {};
-    dates.value.forEach(date => {
-      shifts.value[employee.id][date] = { start: '', end: '' };
-    });
-  });
-};
-
-onMounted(() => {
-  dates.value = getDates();
-  initializeShifts();
-});
-
+/**
+ * 土曜日の判定
+ */
 const isSaturday = (dateString: string) => {
   return new Date(dateString).getDay() === 6;
 };
 
+/**
+ * 日曜日の判定
+ */
 const isSunday = (dateString: string) => {
   return new Date(dateString).getDay() === 0;
 };
-  dates.value = getDates();
-  initializeShifts();
+
+/**
+ * 指定した従業員と日付に対応するシフトを取得
+ */
+const getShift = (employee: Employee, date: string) => {
+
+  let shift = employee.shfits.find(shift => shift.workday === date);
+  if (!shift) {
+    shift = { workday: date, starttime: '', endtime: '', breakflg: false };
+    employee.shfits.push(shift);
+  }
+  return shift;
+};
+
+onMounted(() => {
+  dates.value = getMonthListDates();
+});
 </script>
